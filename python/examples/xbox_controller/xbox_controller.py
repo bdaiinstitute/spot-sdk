@@ -25,14 +25,14 @@ from bosdyn.client.lease import LeaseClient, ResourceAlreadyClaimedError
 from bosdyn.client.robot_command import RobotCommandBuilder, RobotCommandClient
 from bosdyn.geometry import EulerZXY
 
-VELOCITY_BASE_SPEED = 0.5  # m/s
-VELOCITY_BASE_ANGULAR = 0.8  # rad/sec
-VELOCITY_CMD_DURATION = 0.6  # seconds
-HEIGHT_MAX = 0.3  # m
+VELOCITY_BASE_SPEED = 2.0 # m/s
+VELOCITY_BASE_ANGULAR = 1.5  # rad/sec
+VELOCITY_CMD_DURATION = 0.25  # seconds
+HEIGHT_MAX = 1.0  # m
 ROLL_OFFSET_MAX = 0.4  # rad
 YAW_OFFSET_MAX = 0.7805  # rad
 PITCH_OFFSET_MAX = 0.7805  # rad
-HEIGHT_CHANGE = 0.1  # m per command
+HEIGHT_CHANGE = 0.025  # m per command
 
 
 class RobotMode(Enum):

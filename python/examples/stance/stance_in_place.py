@@ -72,7 +72,7 @@ def run(config):
 
         stance_cmd = RobotCommandBuilder.stance_command(
             frame_helpers.VISION_FRAME_NAME, pos_fl_rt_vision.position, pos_fr_rt_vision.position,
-            pos_hl_rt_vision.position, pos_hr_rt_vision.position)
+            pos_hl_rt_vision.position, pos_hr_rt_vision.position, body_height=0.35)
 
         print("After stance adjustment, press Ctrl-C to sit Spot and turn off motors.")
 
@@ -95,12 +95,12 @@ def main(argv):
     parser.add_argument('--y-offset', default=0.3, type=float, help="Offset in Y for Spot to step")
     options = parser.parse_args(argv)
 
-    if not 0.2 <= abs(options.x_offset) <= 0.5:
-        print("Invalid x-offset value. Please pass a value between 0.2 and 0.5")
-        sys.exit(1)
-    if not 0.1 <= abs(options.y_offset) <= 0.4:
-        print("Invalid y-offset value. Please pass a value between 0.1 and 0.4")
-        sys.exit(1)
+    # if not 0.2 <= abs(options.x_offset) <= 0.5:
+    #     print("Invalid x-offset value. Please pass a value between 0.2 and 0.5")
+    #     sys.exit(1)
+    # if not 0.1 <= abs(options.y_offset) <= 0.4:
+    #     print("Invalid y-offset value. Please pass a value between 0.1 and 0.4")
+    #     sys.exit(1)
 
     try:
         run(options)

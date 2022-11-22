@@ -207,7 +207,7 @@ class SpotImageCapture:
         # We are using only the visual images
         sources = self.image_client.list_image_sources()
         for source in sources:
-            if source.image_type == ImageSource.IMAGE_TYPE_VISUAL:
+            if source.image_type == ImageSource.IMAGE_TYPE_VISUAL and source.name=="frontleft_fisheye_image":
                 self.source_list.append(source.name)
 
     def capture_images(self, sleep_between_capture):
