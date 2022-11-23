@@ -655,7 +655,7 @@ def main(argv):
         to be released. The estop_gui script from the estop SDK example can be used to release
         the E-Stop. Press ctrl-c at any time to safely power off the robot.
         '''))
-    parser.add_argument("--max-frequency", default=10, type=int,
+    parser.add_argument("--max-frequency", default=50, type=int,
                         help="Max frequency in Hz to send commands to robot")
     parser.add_argument("--logging", action='store_true', help="Turn on logging output")
 

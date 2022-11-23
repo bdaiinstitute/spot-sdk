@@ -13,6 +13,7 @@ if platform.system() == "Windows":
 else:
     import distro
     from xbox_joystick_linux import XboxJoystickLinux
+    from xbox_joystick_steamdeck import XboxJoystickSteamdeck
 
 
 class XboxJoystickFactory:
@@ -33,7 +34,10 @@ class XboxJoystickFactory:
             info = distro.linux_distribution(full_distribution_name=False)
             if info[0] != "ubuntu":
                 print("WARNING, this Linux distribution has not been tested. Use at your own risk")
-            return XboxJoystickLinux()
+            if info[0] == "steamos":
+                return XboxJoystickSteamdeck()
+            else:
+                return XboxJoystickLinux()
         elif op_system == "Windows":
             return XboxJoystickWindows()
         elif op_system == "MacOS":
