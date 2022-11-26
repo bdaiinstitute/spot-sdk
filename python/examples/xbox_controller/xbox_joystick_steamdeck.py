@@ -97,8 +97,8 @@ class XboxJoystickSteamdeck(XboxJoystick):
             raise IOError('Unable to detect Xbox controller/receiver - Run python as sudo')
         
         # while 1:
-        #    readable, writeable, exception = select.select([self.pipe], [], [], 0)
-        #    print(bool(readable), self.pipe.read(173))
+        #     readable, writeable, exception = select.select([self.pipe], [], [], 0)
+        #     print(bool(readable), self.pipe.readable(), self.pipe.read(173))
     
 
     def refresh(self):
@@ -111,10 +111,11 @@ class XboxJoystickSteamdeck(XboxJoystick):
         if self.refresh_time < time.time():
             self.refresh_time = time.time() + self.refresh_delay  # Set next refresh time
             # If there is text available to read from xboxdrv, then read it.
-            readable, writeable, exception = select.select([self.pipe], [], [], 0)
-            print(bool(readable))
+            # readable, writeable, exception = select.select([self.pipe], [], [], 0)
+            readable = self.pipe.readable()
+            # print(bool(readable))
 
-
+            # readable is garbage. Need a better way to get the last available line.
             if readable:
                 # Read every line that is available. We only need to decode the last one.
                 while readable:
@@ -136,10 +137,11 @@ class XboxJoystickSteamdeck(XboxJoystick):
             #     for i in range(10):
             #         print(i, end="")
             # print()
-            print(self.reading)
+            # print(self.reading)
+            # print(bool(readable))
             # print(int(self.reading[10:16]))
             # print(self.reading[106:109])
-            # print(int(self.reading[30:36]) / 32767.0)
+            # print(int(self.reading[30:36])>=0)
 
     def connected(self):
         self.refresh()
@@ -148,7 +150,6 @@ class XboxJoystickSteamdeck(XboxJoystick):
     def left_x(self, deadzone=1000):
         self.refresh()
         raw = int(self.reading[10:16])
-        print(self.axis_scale(raw, deadzone))
         return self.axis_scale(raw, deadzone)
 
     def left_y(self, deadzone=1000):
@@ -156,9 +157,13 @@ class XboxJoystickSteamdeck(XboxJoystick):
         raw = -int(self.reading[20:26])
         return self.axis_scale(raw, deadzone)
 
-    def left_trigger(self):
+    def left_trigger(self, deadzone=1000):
         self.refresh()
-        return int(self.reading[30:36]) / 32767.0
+        raw = int(self.reading[30:36])
+        # print(self.axis_scale(raw, deadzone))
+        # return int(self.reading[30:36])>=0
+        # return int(self.reading[30:36]) / 32767.0
+        return (self.axis_scale(raw, deadzone)+1)/2.0
 
     def right_x(self, deadzone=1000):
         self.refresh()
@@ -170,9 +175,10 @@ class XboxJoystickSteamdeck(XboxJoystick):
         raw = int(self.reading[50:56])
         return self.axis_scale(raw, deadzone)
     
-    def right_trigger(self):
+    def right_trigger(self, deadzone=1000):
         self.refresh()
-        return int(self.reading[60:66]) / 32767.0
+        raw = int(self.reading[60:66])
+        return (self.axis_scale(raw, deadzone)+1)/2.0
 
     def axis_scale(self, raw, deadzone):
         if abs(raw) < deadzone:
