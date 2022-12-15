@@ -43,6 +43,8 @@ LOGGER = logging.getLogger()
 BODY_LENGTH = 1.1
 
 FIDUCIAL_NUMBER = 6
+PITCH_OFFSET = np.radians(5)
+DEFAULT_FOLLOW_DISTANCE = 1.0
 
 
 class FollowFiducial(object):
@@ -73,9 +75,9 @@ class FollowFiducial(object):
         self._avoid_obstacles = options.avoid_obstacles  # Disable obstacle avoidance.
 
         # Epsilon distance between robot and desired go-to point.
-        self._x_eps = .025
-        self._y_eps = .025
-        self._angle_eps = .005
+        self._x_eps = .01
+        self._y_eps = .01
+        self._angle_eps = .01
 
         # Indicator for if motor power is on.
         self._powered_on = False
@@ -232,8 +234,8 @@ class FollowFiducial(object):
         # Check if the tag's point has changed.  If so send a new command.
         # The change in heading helps spot not lose the fiducial as it goes around corners.
         if (self._current_tag_world_pose.size != 0 and
-            np.linalg.norm(self._current_tag_world_pose - new_tag_world_pose) <= 0.25 and
-            abs(angle_diff(new_angle_desired, self._angle_desired)) <= 0.1):
+            np.linalg.norm(self._current_tag_world_pose - new_tag_world_pose) <= self._x_eps and
+            abs(angle_diff(new_angle_desired, self._angle_desired)) <= self._angle_eps):
             return
 
         self._current_tag_world_pose = new_tag_world_pose
@@ -289,7 +291,7 @@ class FollowFiducial(object):
         yhat = [0.0, 1.0, 0.0]
         zhat = np.cross(xhat, yhat)
         mat = np.array([xhat, yhat, zhat]).transpose()
-        return Quat.from_matrix(mat).to_pitch()
+        return Quat.from_matrix(mat).to_pitch() - PITCH_OFFSET
 
     def offset_tag_pose(self, object_rt_world, dist_margin=1.0):
         """Offset the go-to location of the fiducial and compute the desired heading."""
@@ -425,7 +427,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     bosdyn.client.util.add_base_arguments(parser)
-    parser.add_argument("--distance-margin", default=.5,
+    parser.add_argument("--distance-margin", default=DEFAULT_FOLLOW_DISTANCE,
                         help="Distance [meters] that the robot should stop from the fiducial.")
     parser.add_argument("--limit-speed", default=True, type=lambda x: (str(x).lower() == 'true'),
                         help="If the robot should limit its maximum speed.")
