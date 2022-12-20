@@ -19,7 +19,7 @@ import select
 import subprocess
 import time
 
-from xbox_joystick import XboxJoystick
+from .xbox_joystick import XboxJoystick
 
 # Need to parse this: https://git.launchpad.net/ubuntu/+source/joystick/tree/utils/jstest.c#n184
 """

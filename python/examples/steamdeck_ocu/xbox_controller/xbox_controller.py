@@ -15,7 +15,7 @@ from enum import Enum
 import signal
 import atexit
 
-from xbox_joystick_factory import XboxJoystickFactory
+from .xbox_joystick_factory import XboxJoystickFactory
 
 import bosdyn.api.basic_command_pb2 as basic_command_pb2
 import bosdyn.client

@@ -1,9 +1,3 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
-#
-# Downloading, reproducing, distributing or otherwise using the SDK Software
-# is subject to the terms and conditions of the Boston Dynamics Software
-# Development Kit License (20191101-BDSDK-SL).
-
 from __future__ import print_function
 
 import argparse
@@ -15,7 +9,7 @@ from enum import Enum
 import signal
 import atexit
 
-from xbox_joystick_factory import XboxJoystickFactory
+from xbox_controller.xbox_joystick_factory import XboxJoystickFactory
 
 import bosdyn.api.basic_command_pb2 as basic_command_pb2
 import bosdyn.client
@@ -37,6 +31,27 @@ YAW_OFFSET_MAX = 0.7805  # rad
 PITCH_OFFSET_MAX = 0.7805  # rad
 HEIGHT_CHANGE = 0.025  # m per command
 
+# from stitch_front_images import stitch_front_images
+
+
+# hostnames = [('10.0.0.32', 'Autumn'), ('10.0.0.29', 'Chara')]
+hostnames = [('10.0.0.27', 'Betty'), ('10.0.0.63','Fausto')]
+# hostnames = [('10.0.0.27', 'Betty')]
+
+"""
+spot_ip_suffixes["Autumn"]=32
+spot_ip_suffixes["Betty"]=27
+spot_ip_suffixes["Chara"]=29
+spot_ip_suffixes["Donner"]=38
+spot_ip_suffixes["Eddie"]=62
+spot_ip_suffixes["Fausto"]=63
+spot_ip_suffixes["Gus"]=-1 # TODO IP
+spot_ip_suffixes["Harriet"]=39
+spot_ip_suffixes["Ishmael"]=52
+spot_ip_suffixes["J_to_be_named"]=60 # TODO name
+spot_ip_suffixes["K_to_be_named"]=61 # TODO name
+spot_ip_suffixes["Xander"]=34
+"""
 
 class RobotMode(Enum):
     """RobotMode enum stores the current movement type of the robot.
@@ -50,8 +65,7 @@ class RobotMode(Enum):
     Crawl = 7
     Hop = 8
 
-
-class XboxController:
+class OperatorControlUnit:
     """XboxController class provides mapping between xbox controller commands and Spot API calls.
 
     Attributes:
@@ -78,20 +92,26 @@ class XboxController:
     """
 
     def __init__(self):
-        self.client_name = "XboxControllerClient"
-        self.robot = None
-        self.command_client = None
-        self.lease_client = None
-        self.lease_keep_alive = None
-        self.estop_client = None
-        self.estop_keepalive = None
+        self.client_name = "OCU_Client"
+        self.robots = []
+        self.command_clients = []
+        self.lease_clients = []
+        self.lease_keep_alives = []
+        self.estop_clients = []
+        self.estop_keepalives = []
         self.estop_buttons_pressed = False
-        self.mobility_params = None
+        self.mobility_params = []
+
+        self.irobot = 0
 
         # Robot state
         self.mode = None
-        self.has_robot_control = False
-        self.motors_powered = False
+        self.modes = []
+        self.has_robot_controls = []
+        self.motors_powered = []
+
+        self.pad_onpress = False
+        self.pad_pressed = False
 
         self.body_height = 0.0
         self.stand_yaw = 0.0
@@ -103,7 +123,7 @@ class XboxController:
         self.stand_pitch_change = False
         self.stand_yaw_change = False
 
-    def initialize_robot_from_config(self, config):
+    def initialize_robots(self):
         """Initializes SDK from command line arguments.
 
         Args:
@@ -111,15 +131,23 @@ class XboxController:
         """
 
         sdk = bosdyn.client.create_standard_sdk(self.client_name)
-        self.robot = sdk.create_robot(config.hostname)
-        bosdyn.client.util.authenticate(self.robot)
-        self.robot.time_sync.wait_for_sync()
-        self.command_client = self.robot.ensure_client(RobotCommandClient.default_service_name)
-        self.lease_client = self.robot.ensure_client(LeaseClient.default_service_name)
-        self.estop_client = self.robot.ensure_client(EstopClient.default_service_name)
-        self.mobility_params = spot_command_pb2.MobilityParams(
-            locomotion_hint=spot_command_pb2.HINT_AUTO)
 
+        for ii in range(len(hostnames)):
+            print('trying', hostnames[ii][1])
+            self.robots.append(sdk.create_robot(hostnames[ii][0], name=hostnames[ii][1]))
+            bosdyn.client.util.authenticate(self.robots[ii])
+            self.robots[ii].time_sync.wait_for_sync()
+
+            self.command_clients.append(self.robots[ii].ensure_client(RobotCommandClient.default_service_name))
+            self.lease_clients.append(self.robots[ii].ensure_client(LeaseClient.default_service_name))
+            self.estop_clients.append(self.robots[ii].ensure_client(EstopClient.default_service_name))
+            self.mobility_params.append(spot_command_pb2.MobilityParams(locomotion_hint=spot_command_pb2.HINT_AUTO))
+            self.lease_keep_alives.append(None)
+            self.estop_keepalives.append(None)
+            self.modes.append(None)
+            self.has_robot_controls.append(None)
+            self.motors_powered.append(None)
+            print(hostnames[ii][1], ' acquired')
         # Print controls
         print(
             textwrap.dedent("""\
@@ -129,6 +157,8 @@ class XboxController:
 | B                  | Stand                    |
 | X                  | Sit                      |
 | Y                  | Stairs                   |
+| D-Pad up           | Select all robots        |
+| D-Pad left/right   | Toggle individual robot  |
 | LB + :             |                          |
 | - D-pad up/down    | Walk height              |
 | - D-pad left       | Battery-Change Pose      |
@@ -149,7 +179,7 @@ class XboxController:
 | - Left Stick       | Move                     |
 | - Right Stick      | Turn                     |
 |                    |                          |
-| LB + RB + B        | E-Stop                   |
+| LB + RB + B        | E-Stop selected robot(s) |
 | Start              | Motor power & Control    |
 | Back               | Exit                     |
         """))
@@ -162,28 +192,32 @@ class XboxController:
     def _shutdown(self):
         """Returns lease to power off.
         """
-        if self.lease_keep_alive:
-            self.lease_keep_alive.shutdown()
+        if self.lease_keep_alives[self.irobot]:
+            self.lease_keep_alives[self.irobot].shutdown()
 
     def _toggle_estop(self):
         """Toggles on/off E-Stop.
         """
+        is_estop = False
 
-        if not self.estop_keepalive:
-            if self.estop_client.get_status().stop_level == estop_pb2.ESTOP_LEVEL_NONE:
-                print("Taking E-Stop from another controller")
+        for ii in range(len(self.robots)):
+            if self.estop_keepalives[ii]==None:
+                if self.estop_clients[ii].get_status().stop_level == estop_pb2.ESTOP_LEVEL_NONE:
+                    print("Taking E-Stop from another controller")
 
-            #register endpoint with 9 second timeout
-            estop_endpoint = bosdyn.client.estop.EstopEndpoint(client=self.estop_client,
-                                                               name=self.client_name,
-                                                               estop_timeout=9.0)
-            estop_endpoint.force_simple_setup()
+                #register endpoint with 9 second timeout
+                estop_endpoint = bosdyn.client.estop.EstopEndpoint(client=self.estop_clients[ii],
+                                                                name=self.client_name,
+                                                                estop_timeout=9.0)
+                estop_endpoint.force_simple_setup()
 
-            self.estop_keepalive = bosdyn.client.estop.EstopKeepAlive(estop_endpoint)
-        else:
-            self.estop_keepalive.stop()
-            self.estop_keepalive.shutdown()
-            self.estop_keepalive = None
+                self.estop_keepalives[ii] = bosdyn.client.estop.EstopKeepAlive(estop_endpoint)
+            else:
+                self.estop_keepalives[ii].stop()
+                self.estop_keepalives[ii].shutdown()
+                self.estop_keepalives[ii] = None
+                is_estop = True
+        if is_estop:
             self._shutdown()
             sys.exit('E-Stop')
 
@@ -191,33 +225,34 @@ class XboxController:
         """Acquires lease of the robot to gain control.
         """
 
-        if self.has_robot_control or not self.estop_keepalive:
-            return
-        try:
-            self.lease_client.acquire()
-        except ResourceAlreadyClaimedError as exc:
-            print("Another controller " + exc.response.lease_owner.client_name +
-                  " has a lease. Close that controller"
-                  ", wait a few seconds and press the Start button again.")
-            return
-        else:
-            self.lease_keep_alive = bosdyn.client.lease.LeaseKeepAlive(
-                self.lease_client, return_at_exit=True)
-            self.has_robot_control = True
+        for ii in range(len(self.robots)):
+            if self.has_robot_controls[ii] or not self.estop_keepalives[ii]:
+                return
+            try:
+                self.lease_clients[ii].acquire()
+            except ResourceAlreadyClaimedError as exc:
+                print("Another controller " + exc.response.lease_owner.client_name +
+                    " has a lease. Close that controller"
+                    ", wait a few seconds and press the Start button again.")
+                return
+            else:
+                self.lease_keep_alives[ii] = bosdyn.client.lease.LeaseKeepAlive(
+                    self.lease_clients[ii], return_at_exit=True)
+                self.has_robot_controls[ii] = True
 
     def _power_motors(self):
         """Powers the motors on in the robot.
         """
+        for ii in range(len(self.robots)):
+            if self.motors_powered[ii] or \
+            not self.has_robot_controls[ii] or \
+            not self.estop_keepalives[ii] or \
+            self.robots[ii].is_powered_on():
+                return
 
-        if self.motors_powered or \
-        not self.has_robot_control or \
-        not self.estop_keepalive or \
-        self.robot.is_powered_on():
-            return
-
-        self.robot.power_on(timeout_sec=20)
-        self.robot.is_powered_on()
-        self.motors_powered = True
+            self.robots[ii].power_on(timeout_sec=20)
+            self.robots[ii].is_powered_on()
+            self.motors_powered[ii] = True
 
     def _issue_robot_command(self, command, endtime=None):
         """Check that the lease has been acquired and motors are powered on before issuing a command.
@@ -226,14 +261,26 @@ class XboxController:
             command: RobotCommand message to be sent to the robot.
             endtime: Time (in the local clock) that the robot command should stop.
         """
-        if not self.has_robot_control:
-            print("Must have control by acquiring a lease before commanding the robot.")
-            return
-        if not self.motors_powered:
-            print("Must have motors powered on before commanding the robot.")
-            return
+        if self.irobot >=0:
+            if not self.has_robot_controls[self.irobot]:
+                print("Must have control by acquiring a lease before commanding the robot.")
+                return
+            if not self.motors_powered[self.irobot]:
+                print("Must have motors powered on before commanding the robot.")
+                return
+            
+            self.command_clients[self.irobot].robot_command_async(command, end_time_secs=endtime)
+        else:
+            for ii in range(len(self.robots)):
+                if not self.has_robot_controls[ii]:
+                    print("Must have control by acquiring a lease before commanding the robot.")
+                    return
+                if not self.motors_powered[ii]:
+                    print("Must have motors powered on before commanding the robot.")
+                    return
+                
+                self.command_clients[ii].robot_command_async(command, end_time_secs=endtime)
 
-        self.command_client.robot_command_async(command, end_time_secs=endtime)
 
     def _jog(self):
         """Sets robot in Jog mode.
@@ -388,7 +435,7 @@ class XboxController:
             height: Height of the robot body from normal stand height. Defaults to 0.0.
         """
 
-        if not self.motors_powered:
+        if not self.motors_powered[self.irobot]:
             return
 
         orientation = EulerZXY(yaw, roll, pitch)
@@ -493,26 +540,31 @@ class XboxController:
         self.stand_roll_change = False
 
     def _print_status(self):
-        """Prints the current status of the robot: E-Stop, Control, Powered-on, Current Mode.
+        """Prints the current status of the robot: Name, E-Stop, Control, Powered-on, Current Mode.
         """
 
         # Move cursor back to the start of the line
-        print(chr(13), end="")
-        if self.estop_keepalive:
-            print("E-Stop: Acquired    ", end="")
+        print(chr(13))
+        
+        if self.irobot == -1:
+            print("Robot: All!   " , end="")
         else:
-            print("E-Stop: Not Acquired", end="")
-        if self.has_robot_control:
-            print("\tRobot Lease: Acquired    ", end="")
-        if self.robot.is_powered_on():
-            print("\tRobot Motors: Powered On ", end="")
+            print("Robot: " + str(hostnames[self.irobot][1])+" " , end="")
+        if self.estop_keepalives[self.irobot]:
+            print("\tAll E-Stops: Acquired    ", end="")
+        else:
+            print("\tAll E-Stops: Not Acquired", end="")
+        if self.has_robot_controls[self.irobot]:
+            print("\tLeases: Acquired    ", end="")
+        if self.robots[self.irobot].is_powered_on():
+            print("\tAll Motors: Powered On ", end="")
         if self.mode:
-            print("\t\t" + "In Robot Mode: " + self.mode.name, end="")
+            print("\t" + "Mode: " + self.mode.name, end="")
             num_chars = len(self.mode.name)
             if num_chars < 6:  # 6 is the length of Stairs enum
                 print(" " * (6 - num_chars), end="")
-
-    def control_robot(self, frequency):
+        
+    def control_robots(self, frequency=100):
         """Controls robot from an Xbox controller.
 
         Mapping
@@ -560,6 +612,34 @@ class XboxController:
                 right_x = joy.right_x()
                 right_y = joy.right_y()
 
+                #Detect the transition between no press and press
+                if (joy.dpad_up() or joy.dpad_left() or joy.dpad_right()):
+                    if not self.pad_pressed and not self.pad_onpress:
+                        self.pad_pressed = True 
+                        self.pad_onpress = True #This will only be true for one "frame" and is reset
+                    else:
+                        self.pad_pressed = True
+                        self.pad_onpress = False
+                else:
+                    self.pad_pressed = False
+                    self.pad_onpress = False
+
+                #switch robot
+                if joy.dpad_up() and self.pad_onpress:
+                    # Select all robots
+                    self.irobot = -1
+                    # print("All robots selected!")
+                elif joy.dpad_right() and self.pad_onpress:
+                    self.irobot += 1
+                    if self.irobot > len(hostnames)-1:
+                        self.irobot = 0
+                    # print(hostnames[self.irobot][1], " selected!")
+                elif joy.dpad_left() and self.pad_onpress:
+                    self.irobot -= 1
+                    if self.irobot < 0:
+                        self.irobot = len(hostnames)-1
+                    # print(hostnames[self.irobot][1], " selected!")
+
                 #handle resets for Stand mode
                 if self.mode == RobotMode.Stand:
                     if self.stand_height_change and left_y == 0.0:
@@ -575,9 +655,6 @@ class XboxController:
                 # If E-Stop button combination is pressed, toggle E-Stop functionality only when
                 # buttons are released.
 
-                # print(joy.reading)                
-                # print(start_time, joy.left_bumper(), joy.right_bumper(), joy.B())
-
                 if joy.left_bumper() and joy.right_bumper() and joy.B():
                     self.estop_buttons_pressed = True
                 else:
@@ -589,9 +666,9 @@ class XboxController:
                     self._change_height(1)
                 if joy.left_bumper() and joy.dpad_down():
                     self._change_height(-1)
-                if joy.left_bumper() and joy.dpad_left():
+                if joy.left_bumper() and joy.dpad_left() and self.pad_onpress:
                     self._battery_change_pose()
-                if joy.left_bumper() and joy.dpad_right():
+                if joy.left_bumper() and joy.dpad_right() and self.pad_onpress:
                     self._selfright()
 
                 if joy.Y():
@@ -630,16 +707,6 @@ class XboxController:
                     else:
                         self._move(left_x, left_y, right_x)
 
-                    # if left_x != 0.0 or left_y != 0.0 or right_x != 0.0:
-                    #     self._move(left_x, left_y, right_x)
-                    # else:
-                    #     if self.mode == RobotMode.Walk or\
-                    #     self.mode == RobotMode.Amble or\
-                    #     self.mode == RobotMode.Crawl or\
-                    #     self.mode == RobotMode.Jog or\
-                    #     self.mode == RobotMode.Hop:
-                    #         self._move(0.0, 0.0, 0.0)
-
                 if joy.start():
                     ""
                     self._gain_control()
@@ -658,37 +725,11 @@ class XboxController:
             # Close out when done
             self._shutdown()
 
-
 def main(argv):
-    """Parses command line args.
 
-    Args:
-        argv: List of command-line arguments.
-    """
-
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawTextHelpFormatter, description=('''
-        Use this script to control the Spot robot from an Xbox controller. Press the Back
-        controller button to safely power off the robot. Note that the example needs the E-Stop
-        to be released. The estop_gui script from the estop SDK example can be used to release
-        the E-Stop. Press ctrl-c at any time to safely power off the robot.
-        '''))
-    parser.add_argument("--max-frequency", default=100, type=int,
-                        help="Max frequency in Hz to send commands to robot")
-    parser.add_argument("--logging", action='store_true', help="Turn on logging output")
-
-    bosdyn.client.util.add_base_arguments(parser)
-    options = parser.parse_args(argv)
-    if options.logging:
-        bosdyn.client.util.setup_logging(options.verbose)
-
-    max_frequency = options.max_frequency
-    if max_frequency <= 0:
-        max_frequency = 100
-
-    controller = XboxController()
-    controller.initialize_robot_from_config(options)
-    controller.control_robot(max_frequency)
+    controller = OperatorControlUnit()
+    controller.initialize_robots()
+    controller.control_robots(frequency = 100)
 
 if __name__ == "__main__":
     import sys
