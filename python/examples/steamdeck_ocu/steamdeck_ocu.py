@@ -48,8 +48,8 @@ spot_ip_suffixes["Fausto"]=63
 spot_ip_suffixes["Gus"]=-1 # TODO IP
 spot_ip_suffixes["Harriet"]=39
 spot_ip_suffixes["Ishmael"]=52
-spot_ip_suffixes["J_to_be_named"]=60 # TODO name
-spot_ip_suffixes["K_to_be_named"]=61 # TODO name
+spot_ip_suffixes["Jasper"]=60
+spot_ip_suffixes["Kepler"]=61
 spot_ip_suffixes["Xander"]=34
 """
 

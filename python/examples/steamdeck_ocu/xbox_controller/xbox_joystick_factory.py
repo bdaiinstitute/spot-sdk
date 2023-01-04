@@ -13,7 +13,7 @@ if platform.system() == "Windows":
 else:
     import distro
     from .xbox_joystick_linux import XboxJoystickLinux
-    from .xbox_joystick_steamdeck import XboxJoystickSteamdeck
+    from .steamdeck_joystick import XboxJoystickSteamdeck
 
 
 class XboxJoystickFactory:

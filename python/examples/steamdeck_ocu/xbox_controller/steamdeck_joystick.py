@@ -27,7 +27,7 @@ from .xbox_joystick import XboxJoystick
 Axes:  0:     0  1:     0  2:     0  3:     0  4:     0  5:     0  6:     0  7:     0 Buttons:  0:off  1:off  2:off  3:off  4:off  5:off  6:off  7:off  8:off  9:off 10:off 
 """
 
-class XboxJoystickSteamdeck(XboxJoystick):
+class SteamdeckJoystick(XboxJoystick):
     """Initializes the joystick/wireless receiver.
 
     Launches 'xboxdrv' as a subprocess and checks that the wired joystick or wireless receiver is
