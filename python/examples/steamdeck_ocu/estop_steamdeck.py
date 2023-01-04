@@ -16,11 +16,11 @@ import bosdyn.client
 import bosdyn.client.estop
 import bosdyn.client.util
 from bosdyn.api import estop_pb2
-from bosdyn.api.spot import robot_command_pb2 as spot_command_pb2
+# from bosdyn.api.spot import robot_command_pb2 as spot_command_pb2
 from bosdyn.client.estop import EstopClient
 from bosdyn.client.lease import LeaseClient, ResourceAlreadyClaimedError
-from bosdyn.client.robot_command import RobotCommandBuilder, RobotCommandClient
-from bosdyn.geometry import EulerZXY
+# from bosdyn.client.robot_command import RobotCommandBuilder, RobotCommandClient
+# from bosdyn.geometry import EulerZXY
 
 VELOCITY_BASE_SPEED = 2.0 # m/s
 VELOCITY_BASE_ANGULAR = 1.5  # rad/sec
@@ -53,18 +53,6 @@ spot_ip_suffixes["Jasper"]=60
 spot_ip_suffixes["Kepler"]=61
 spot_ip_suffixes["Xander"]=34
 """
-
-class RobotMode(Enum):
-    """RobotMode enum stores the current movement type of the robot.
-    """
-    Walk = 1
-    Sit = 2
-    Stand = 3
-    Stairs = 4
-    Jog = 5
-    Amble = 6
-    Crawl = 7
-    Hop = 8
 
 class OperatorControlUnit:
     """XboxController class provides mapping between xbox controller commands and Spot API calls.
@@ -139,10 +127,10 @@ class OperatorControlUnit:
             bosdyn.client.util.authenticate(self.robots[ii])
             self.robots[ii].time_sync.wait_for_sync()
 
-            self.command_clients.append(self.robots[ii].ensure_client(RobotCommandClient.default_service_name))
+            # self.command_clients.append(self.robots[ii].ensure_client(RobotCommandClient.default_service_name))
             self.lease_clients.append(self.robots[ii].ensure_client(LeaseClient.default_service_name))
             self.estop_clients.append(self.robots[ii].ensure_client(EstopClient.default_service_name))
-            self.mobility_params.append(spot_command_pb2.MobilityParams(locomotion_hint=spot_command_pb2.HINT_AUTO))
+            # self.mobility_params.append(spot_command_pb2.MobilityParams(locomotion_hint=spot_command_pb2.HINT_AUTO))
             self.lease_keep_alives.append(None)
             self.estop_keepalives.append(None)
             self.modes.append(None)
@@ -282,264 +270,6 @@ class OperatorControlUnit:
                 
                 self.command_clients[ii].robot_command_async(command, end_time_secs=endtime)
 
-
-    def _jog(self):
-        """Sets robot in Jog mode.
-        """
-
-        if self.mode is not RobotMode.Jog:
-            self.mode = RobotMode.Jog
-            self._reset_height()
-            self.mobility_params = spot_command_pb2.MobilityParams(
-                locomotion_hint=spot_command_pb2.HINT_JOG, stair_hint=0)
-
-            cmd = RobotCommandBuilder.synchro_stand_command(params=self.mobility_params)
-            self._issue_robot_command(cmd)
-
-    def _amble(self):
-        """Sets robot in Amble mode.
-        """
-
-        if self.mode is not RobotMode.Amble:
-            self.mode = RobotMode.Amble
-            self.mobility_params = spot_command_pb2.MobilityParams(
-                locomotion_hint=spot_command_pb2.HINT_AMBLE, stair_hint=0)
-
-            cmd = RobotCommandBuilder.synchro_stand_command(params=self.mobility_params)
-            self._issue_robot_command(cmd)
-
-    def _crawl(self):
-        """Sets robot in Crawl mode.
-        """
-
-        if self.mode is not RobotMode.Crawl:
-            self.mode = RobotMode.Crawl
-            self.mobility_params = spot_command_pb2.MobilityParams(
-                locomotion_hint=spot_command_pb2.HINT_CRAWL, stair_hint=0)
-
-            cmd = RobotCommandBuilder.synchro_stand_command(params=self.mobility_params)
-            self._issue_robot_command(cmd)
-
-    def _hop(self):
-        """Sets robot in Hop mode.
-        """
-
-        if self.mode is not RobotMode.Hop:
-            self.mode = RobotMode.Hop
-            self._reset_height()
-            self.mobility_params = spot_command_pb2.MobilityParams(
-                locomotion_hint=spot_command_pb2.HINT_HOP, stair_hint=0)
-
-            cmd = RobotCommandBuilder.synchro_stand_command(params=self.mobility_params)
-            self._issue_robot_command(cmd)
-
-    def _stairs(self):
-        """Sets robot in Stairs mode.
-        """
-
-        if self.mode is not RobotMode.Stairs:
-            self.mode = RobotMode.Stairs
-            self.mobility_params = spot_command_pb2.MobilityParams(
-                locomotion_hint=spot_command_pb2.HINT_AUTO, stair_hint=1)
-
-            cmd = RobotCommandBuilder.synchro_stand_command(params=self.mobility_params)
-            self._issue_robot_command(cmd)
-
-    def _walk(self):
-        """Sets robot in Walk mode.
-        """
-
-        if self.mode is not RobotMode.Walk:
-            self.mode = RobotMode.Walk
-            self.mobility_params = spot_command_pb2.MobilityParams(
-                locomotion_hint=spot_command_pb2.HINT_SPEED_SELECT_TROT, stair_hint=0)
-
-            cmd = RobotCommandBuilder.synchro_stand_command(params=self.mobility_params)
-            self._issue_robot_command(cmd)
-
-    def _stand(self):
-        """Sets robot in Stand mode.
-        """
-
-        if self.mode is not RobotMode.Stand:
-            self.mode = RobotMode.Stand
-            self.mobility_params = spot_command_pb2.MobilityParams(
-                locomotion_hint=spot_command_pb2.HINT_AUTO, stair_hint=0)
-
-            cmd = RobotCommandBuilder.synchro_stand_command(params=self.mobility_params)
-            self._issue_robot_command(cmd)
-
-    def _sit(self):
-        """Sets robot in Sit mode.
-        """
-
-        if self.mode is not RobotMode.Sit:
-            self.mode = RobotMode.Sit
-            self.mobility_params = spot_command_pb2.MobilityParams(
-                locomotion_hint=spot_command_pb2.HINT_AUTO, stair_hint=0)
-
-            cmd = RobotCommandBuilder.synchro_sit_command(params=self.mobility_params)
-            self._issue_robot_command(cmd)
-
-    def _selfright(self):
-        """Executes selfright command, which causes the robot to automatically turn if
-        it is on its back.
-        """
-
-        cmd = RobotCommandBuilder.selfright_command()
-        self._issue_robot_command(cmd)
-
-    def _battery_change_pose(self):
-        """Executes the battery-change pose command which causes the robot to sit down if
-        standing then roll to its [right]/left side for easier battery changing.
-        """
-
-        cmd = RobotCommandBuilder.battery_change_pose_command(
-            dir_hint=basic_command_pb2.BatteryChangePoseCommand.Request.HINT_RIGHT)
-        self._issue_robot_command(cmd)
-
-    def _move(self, left_x, left_y, right_x):
-        """Commands the robot with a velocity command based on left/right stick values.
-
-        Args:
-            left_x: X value of left stick.
-            left_y: Y value of left stick.
-            right_x: X value of right stick.
-        """
-
-        # Stick left_x controls robot v_y
-        v_y = -left_x * VELOCITY_BASE_SPEED
-
-        # Stick left_y controls robot v_x
-        v_x = left_y * VELOCITY_BASE_SPEED
-
-        # Stick right_x controls robot v_rot
-        v_rot = -right_x * VELOCITY_BASE_ANGULAR
-
-        # Recreate mobility_params with the latest information
-        self.mobility_params = RobotCommandBuilder.mobility_params(
-            body_height=self.body_height, locomotion_hint=self.mobility_params.locomotion_hint,
-            stair_hint=self.mobility_params.stair_hint)
-
-        cmd = RobotCommandBuilder.synchro_velocity_command(v_x=v_x, v_y=v_y, v_rot=v_rot,
-                                                           params=self.mobility_params)
-        self._issue_robot_command(cmd, endtime=time.time() + VELOCITY_CMD_DURATION)
-
-    def _orientation_cmd_helper(self, yaw=0.0, roll=0.0, pitch=0.0, height=0.0):
-        """Helper function that commands the robot with an orientation command;
-        Used by the other orientation functions.
-
-        Args:
-            yaw: Yaw of the robot body. Defaults to 0.0.
-            roll: Roll of the robot body. Defaults to 0.0.
-            pitch: Pitch of the robot body. Defaults to 0.0.
-            height: Height of the robot body from normal stand height. Defaults to 0.0.
-        """
-
-        if not self.motors_powered[self.irobot]:
-            return
-
-        orientation = EulerZXY(yaw, roll, pitch)
-        cmd = RobotCommandBuilder.synchro_stand_command(body_height=height,
-                                                        footprint_R_body=orientation)
-        self._issue_robot_command(cmd, endtime=time.time() + VELOCITY_CMD_DURATION)
-
-    def _change_height(self, direction):
-        """Changes robot body height.
-
-        Args:
-            direction: 1 to increase height, -1 to decrease height.
-        """
-
-        self.body_height = self.body_height + direction * HEIGHT_CHANGE
-        self.body_height = min(HEIGHT_MAX, self.body_height)
-        self.body_height = max(-HEIGHT_MAX, self.body_height)
-        self._orientation_cmd_helper(height=self.body_height)
-
-    def _interp_joy_saturated(self, x, y1, y2):
-        """
-        Interpolate a value between y1 and y2 based on the position of x between -1 and
-        1 (the normalized values the xbox controller classes return.).
-        If x is outside [-1, 1], saturate the output correctly to y1 or y2.
-        """
-        if (x <= -1):
-            return y1
-        elif (x >= 1):
-            return y2
-
-        # Range of x is [-1, 1], so dx is 2.
-        slope = (y2 - y1) / 2.0
-        return slope * (x + 1) + y1
-
-    def _update_orientation(self, left_x, left_y, right_x, right_y):
-        """Updates body orientation in Stand mode.
-
-        Args:
-            left_x: X value of left stick.
-            left_y: Y value of left stick.
-            right_x: X value of right stick.
-            right_y: Y value of right stick.
-        """
-
-        if left_x != 0.0:
-            # Update roll
-            self.stand_roll_change = True
-            self.stand_roll = self._interp_joy_saturated(left_x, -ROLL_OFFSET_MAX, ROLL_OFFSET_MAX)
-
-        if left_y != 0.0:
-            # Update height
-            self.stand_height_change = True  # record this change so we reset correctly
-            self.body_height = self._interp_joy_saturated(left_y, -HEIGHT_MAX, HEIGHT_MAX)
-
-        if right_x != 0.0:
-            # Update yaw
-            self.stand_yaw_change = True
-            self.stand_yaw = self._interp_joy_saturated(right_x, YAW_OFFSET_MAX, -YAW_OFFSET_MAX)
-
-        if right_y != 0.0:
-            # Update pitch
-            self.stand_pitch_change = True
-            self.stand_pitch = self._interp_joy_saturated(right_y, -PITCH_OFFSET_MAX,
-                                                          PITCH_OFFSET_MAX)
-
-        self._orientation_cmd_helper(yaw=self.stand_yaw, roll=self.stand_roll,
-                                     pitch=self.stand_pitch, height=self.body_height)
-
-    def _reset_height(self):
-        """Resets robot body height to normal stand height.
-        """
-
-        self.body_height = 0.0
-        self._orientation_cmd_helper(height=self.body_height)
-        self.stand_height_change = False
-
-    def _reset_pitch(self):
-        """Commands the robot to reset body orientation if tilted up/down.
-        Only called in Stand mode.
-        """
-
-        self.stand_pitch = 0.0
-        self._orientation_cmd_helper(pitch=self.stand_pitch)
-        self.stand_pitch_change = False
-
-    def _reset_yaw(self):
-        """Commands the robot to reset body orientation if tilted left/right.
-        Only called in Stand mode.
-        """
-
-        self.stand_yaw = 0.0
-        self._orientation_cmd_helper(yaw=self.stand_yaw)
-        self.stand_yaw_change = False
-
-    def _reset_roll(self):
-        """Commands the robot to reset body orientation if rotated left/right.
-        Only called in Stand mode.
-        """
-
-        self.stand_roll = 0.0
-        self._orientation_cmd_helper(roll=self.stand_roll)
-        self.stand_roll_change = False
-
     def _print_status(self):
         """Prints the current status of the robot: Name, E-Stop, Control, Powered-on, Current Mode.
         """
@@ -641,17 +371,6 @@ class OperatorControlUnit:
                         self.irobot = len(hostnames)-1
                     # print(hostnames[self.irobot][1], " selected!")
 
-                #handle resets for Stand mode
-                if self.mode == RobotMode.Stand:
-                    if self.stand_height_change and left_y == 0.0:
-                        self._reset_height()
-                    if self.stand_roll_change and left_x == 0.0:
-                        self._reset_roll()
-                    if self.stand_pitch_change and right_y == 0.0:
-                        self._reset_pitch()
-                    if self.stand_yaw_change and right_x == 0.0:
-                        self._reset_yaw()
-
                 # Handle button combinations first
                 # If E-Stop button combination is pressed, toggle E-Stop functionality only when
                 # buttons are released.
@@ -692,22 +411,7 @@ class OperatorControlUnit:
                         self._hop()
                     else:
                         self._sit()
-
-                if self.mode == RobotMode.Stand:
-                    # if left_x != 0.0 or left_y != 0.0 or right_x != 0.0 or right_y != 0.0:
-                    self._update_orientation(left_x, left_y, right_x, right_y)
-                elif self.mode == RobotMode.Walk or\
-                        self.mode == RobotMode.Amble or\
-                        self.mode == RobotMode.Crawl or\
-                        self.mode == RobotMode.Jog or\
-                        self.mode == RobotMode.Hop:
-                    if left_x == 0.0 and left_y == 0.0 and right_x == 0.0 and right_y == 0.0:
-                        #This makes it stand statically if it's not moving, to not waste energy. 
-                        #Even better would be to keep the feet right where they were using the stance command.
-                        self._update_orientation(left_x, left_y, right_x, right_y)
-                    else:
-                        self._move(left_x, left_y, right_x)
-
+                
                 if joy.start():
                     ""
                     self._gain_control()
