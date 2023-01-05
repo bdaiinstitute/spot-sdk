@@ -37,7 +37,8 @@ HEIGHT_CHANGE = 0.025  # m per command
 # hostnames = [('10.0.0.32', 'Autumn'), ('10.0.0.29', 'Chara')]
 # hostnames = [('10.0.0.27', 'Betty'), ('10.0.0.63','Fausto')]
 # hostnames = [('10.0.0.27', 'Betty')]
-hostnames = [('10.0.0.38', 'Donner'), ('10.0.0.34','Xander')]
+# hostnames = [('10.0.0.38', 'Donner'), ('10.0.0.34','Xander')]
+hostnames = [('10.0.0.63','Fausto')]
 
 """
 spot_ip_suffixes["Autumn"]=32
@@ -545,7 +546,7 @@ class OperatorControlUnit:
         """
 
         # Move cursor back to the start of the line
-        print(chr(13))
+        print(chr(13), end="")
         
         if self.irobot == -1:
             print("Robot: All!   " , end="")
@@ -626,20 +627,17 @@ class OperatorControlUnit:
                     self.pad_onpress = False
 
                 #switch robot
-                if joy.dpad_up() and self.pad_onpress:
+                if not joy.left_bumper() and joy.dpad_up() and self.pad_onpress:
                     # Select all robots
                     self.irobot = -1
-                    # print("All robots selected!")
-                elif joy.dpad_right() and self.pad_onpress:
+                elif not joy.left_bumper() and joy.dpad_right() and self.pad_onpress:
                     self.irobot += 1
                     if self.irobot > len(hostnames)-1:
                         self.irobot = 0
-                    # print(hostnames[self.irobot][1], " selected!")
-                elif joy.dpad_left() and self.pad_onpress:
+                elif not joy.left_bumper() and joy.dpad_left() and self.pad_onpress:
                     self.irobot -= 1
                     if self.irobot < 0:
                         self.irobot = len(hostnames)-1
-                    # print(hostnames[self.irobot][1], " selected!")
 
                 #handle resets for Stand mode
                 if self.mode == RobotMode.Stand:
@@ -667,9 +665,9 @@ class OperatorControlUnit:
                     self._change_height(1)
                 if joy.left_bumper() and joy.dpad_down():
                     self._change_height(-1)
-                if joy.left_bumper() and joy.dpad_left() and self.pad_onpress:
+                if joy.left_bumper() and joy.dpad_left():
                     self._battery_change_pose()
-                if joy.left_bumper() and joy.dpad_right() and self.pad_onpress:
+                if joy.left_bumper() and joy.dpad_right():
                     self._selfright()
 
                 if joy.Y():
@@ -701,7 +699,7 @@ class OperatorControlUnit:
                         self.mode == RobotMode.Crawl or\
                         self.mode == RobotMode.Jog or\
                         self.mode == RobotMode.Hop:
-                    if left_x == 0.0 and left_y == 0.0 and right_x == 0.0 and right_y == 0.0:
+                    if left_x == 0.0 and left_y == 0.0 and right_x == 0.0 and right_y == 0.0 and not self.mode == RobotMode.Hop:
                         #This makes it stand statically if it's not moving, to not waste energy. 
                         #Even better would be to keep the feet right where they were using the stance command.
                         self._update_orientation(left_x, left_y, right_x, right_y)
