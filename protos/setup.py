@@ -24,6 +24,15 @@ class BuildProtos(setuptools.Command):
     def finalize_options(self):
         if self.build_lib is None:
             build = self.distribution.get_command_obj("build")
+            if self.distribution.packages is None:
+                self.distribution.packages = []
+            self.distribution.packages.extend(self.distribution.proto_packages)
+            if self.distribution.package_dir is None:
+                self.distribution.package_dir = {}
+            for package in self.distribution.proto_packages:
+                package_relpath = package.replace(".", os.path.sep)
+                self.distribution.package_dir[package] = (
+                    os.path.join(build.build_lib, package_relpath))
             self.build_lib = build.build_lib
 
     def get_source_files(self):
