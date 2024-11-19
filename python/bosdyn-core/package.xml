@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>bosdyn_core</name>
+  <version>4.1.0</version>
+  <description>Boston Dynamics API Core code and interfaces</description>
+  <maintainer email="engineering@theaiinstitute.com">BD AI Institute</maintainer>
+  <license>BDSDK-L</license>
+
+  <exec_depend>bosdyn_api</exec_depend>
+  <exec_depend>python3-deprecated</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

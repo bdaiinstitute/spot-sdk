@@ -4,22 +4,23 @@
 # is subject to the terms and conditions of the Boston Dynamics Software
 # Development Kit License (20191101-BDSDK-SL).
 
-import os
-
-import setuptools
-
-try:
-    SDK_VERSION = os.environ['BOSDYN_SDK_VERSION']
-except KeyError:
-    print('Do not run setup.py directly - use wheels.py to build API wheels')
-    raise
-
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+import xml.etree.ElementTree as ET
+tree = ET.parse("package.xml")
+root = tree.getroot()
+tag = root.find("name")
+assert tag is not None
+package_name = tag.text or ""
+tag = root.find("version")
+assert tag is not None
+version = tag.text
+
+import setuptools
 setuptools.setup(
-    name="bosdyn-mission",
-    version=SDK_VERSION,
+    name=package_name,
+    version=version,
     author="Boston Dynamics",
     author_email="support@bostondynamics.com",
     description="Boston Dynamics mission code",
@@ -32,9 +33,9 @@ setuptools.setup(
     },
     packages=setuptools.find_packages('src'),
     package_dir={'': 'src'},
-    install_requires=[
-        'bosdyn-client=={}'.format(SDK_VERSION),
-        'bosdyn-api=={}'.format(SDK_VERSION),
+    data_files=[
+        ("share/" + package_name, ["package.xml"]),
+        ("share/ament_index/resource_index/packages", ["resource/" + package_name])
     ],
     classifiers=[
         "Programming Language :: Python :: 3.6",
