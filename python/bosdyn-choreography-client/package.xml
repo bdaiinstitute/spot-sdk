@@ -4,7 +4,7 @@
   <name>bosdyn_choreography_client</name>
   <version>4.1.0</version>
   <description>Boston Dynamics API client code and interfaces for choreography</description>
-  <maintainer email="engineering@theaiinstitute.com">BD AI Institute</maintainer>
+  <maintainer email="opensource@theaiinstitute.com">Boston Dynamics AI Institute</maintainer>
   <license>BDSDK-L</license>
 
   <exec_depend>bosdyn_api</exec_depend>

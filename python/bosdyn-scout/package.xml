@@ -4,7 +4,7 @@
   <name>bosdyn_scout</name>
   <version>4.1.0</version>
   <description>Boston Dynamics API Scout Client</description>
-  <maintainer email="engineering@theaiinstitute.com">BD AI Institute</maintainer>
+  <maintainer email="opensource@theaiinstitute.com">Boston Dynamics AI Institute</maintainer>
   <license>BDSDK-L</license>
 
   <exec_depend>bosdyn_orbit</exec_depend>
